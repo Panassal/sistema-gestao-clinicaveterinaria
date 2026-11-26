@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Veterinária - Gestão</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: auto; }
+        h1 { text-align: center; color: #2c7a7b; }
+        .card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #285e61; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #cbd5e0; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #319795; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 15px; }
+        button:hover { background-color: #2c7a7b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        th { background-color: #edf2f7; }
+
+        /* Estilos das etiquetas de alerta de retorno */
+        .badge-retorno {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .badge-em-dia { background-color: #dcfce7; color: #166534; }
+        .badge-proximo { background-color: #fef9c3; color: #854d0e; }
+        .badge-atrasado { background-color: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🐾 Sistema Clínica Veterinária</h1>
+
+    <!-- Cadastro de Animal -->
+    <div class="card">
+        <h2>1. Cadastrar Paciente (Animal)</h2>
+        <div class="grid">
+            <input type="text" id="nomeAnimal" placeholder="Nome do Animal (ex: Rex)">
+            <input type="text" id="especie" placeholder="Espécie (ex: Cão, Gato)">
+            <input type="text" id="raca" placeholder="Raça (ex: Labrador)">
+            <input type="number" id="idade" placeholder="Idade (anos)">
+            <input type="text" id="tutor" placeholder="Nome do Tutor">
+        </div>
+        <button onclick="cadastrarAnimal()">Salvar Animal</button>
+    </div>
+
+    <!-- Registro de Atendimento / Serviço -->
+    <div class="card">
+        <h2>2. Registrar Atendimento / Serviço</h2>
+        <div class="grid">
+            <select id="selectAnimal">
+                <option value="">Selecione o Animal...</option>
+            </select>
+            <input type="text" id="tipoServico" placeholder="Tipo (ex: Consulta, Vacina, Banho)">
+            <input type="date" id="dataServico">
+            <input type="number" step="0.01" id="valorServico" placeholder="Valor (R$)">
+        </div>
+        <input type="text" id="descricaoServico" placeholder="Observações / Descrição do procedimento" style="margin-top: 15px;">
+        <button onclick="registrarServico()">Registrar Atendimento</button>
+    </div>
+
+    <!-- Consulta de Histórico -->
+    <div class="card">
+        <h2>3. Histórico Clínico do Paciente</h2>
+        <select id="selectHistorico" onchange="carregarHistorico()">
+            <option value="">Escolha um animal para ver o histórico...</option>
+        </select>
+        <table>
+            <thead>
+            <tr>
+                <th>Data</th>
+                <th>Serviço</th>
+                <th>Descrição</th>
+                <th>Valor</th>
+                <th>Próximo Retorno</th>
+            </tr>
+            </thead>
+            <tbody id="tabelaHistorico">
+            <tr><td colspan="5">Nenhum registro selecionado.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function criarEtiquetaRetorno(status, dataRetorno) {
+        const dataBr = dataRetorno
+            ? new Date(dataRetorno + 'T00:00:00').toLocaleDateString('pt-BR')
+            : '-';
+
+        if (status === 'EM_DIA') {
+            return `<span class="badge-retorno badge-em-dia">Em dia (${dataBr})</span>`;
+        }
+        if (status === 'RETORNO_PROXIMO') {
+            return `<span class="badge-retorno badge-proximo">Retorno próximo (${dataBr})</span>`;
+        }
+        if (status === 'ATRASADO') {
+            return `<span class="badge-retorno badge-atrasado">Atrasado (${dataBr})</span>`;
+        }
+        return `<span class="badge-retorno">Sem previsão</span>`;
+    }
+
+    async function carregarAnimais() {
+        const res = await fetch('/api/animais');
+        const animais = await res.json();
+        const select1 = document.getElementById('selectAnimal');
+        const select2 = document.getElementById('selectHistorico');
+        select1.innerHTML = '<option value="">Selecione o Animal...</option>';
+        select2.innerHTML = '<option value="">Escolha um animal para ver o histórico...</option>';
+
+        animais.forEach(a => {
+            const opt = `<option value="${a.id}">${a.nome} (${a.especie} - Tutor: ${a.tutor})</option>`;
+            select1.innerHTML += opt;
+            select2.innerHTML += opt;
+        });
+    }
+
+    async function cadastrarAnimal() {
+        const animal = {
+            nome: document.getElementById('nomeAnimal').value,
+            especie: document.getElementById('especie').value,
+            raca: document.getElementById('raca').value,
+            idade: parseInt(document.getElementById('idade').value) || 0,
+            tutor: document.getElementById('tutor').value
+        };
+        if (!animal.nome || !animal.tutor) return alert('Preencha ao menos o nome do animal e do tutor.');
+
+        await fetch('/api/animais', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(animal)
+        });
+        alert('Animal cadastrado com sucesso!');
+        document.querySelectorAll('.card:nth-child(2) input').forEach(i => i.value = '');
+        carregarAnimais();
+    }
+
+    async function registrarServico() {
+        const animalId = document.getElementById('selectAnimal').value;
+        if (!animalId) return alert('Selecione um animal!');
+
+        const servico = {
+            animal: { id: parseInt(animalId) },
+            tipoServico: document.getElementById('tipoServico').value,
+            dataServico: document.getElementById('dataServico').value,
+            valor: parseFloat(document.getElementById('valorServico').value) || 0,
+            descricao: document.getElementById('descricaoServico').value
+        };
+
+        await fetch('/api/servicos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(servico)
+        });
+        alert('Atendimento registrado!');
+        carregarHistorico();
+    }
+
+    async function carregarHistorico() {
+        const animalId = document.getElementById('selectHistorico').value;
+        const tbody = document.getElementById('tabelaHistorico');
+        if (!animalId) {
+            tbody.innerHTML = '<tr><td colspan="5">Nenhum registro selecionado.</td></tr>';
+            return;
+        }
+
+        const res = await fetch(`/api/animais/${animalId}/historico`);
+        const servicos = await res.json();
+
+        if (servicos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5">Nenhum atendimento registrado para este animal.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = servicos.map(s => `
+            <tr>
+                <td>${s.dataServico || '-'}</td>
+                <td>${s.tipoServico}</td>
+                <td>${s.descricao || '-'}</td>
+                <td>R$ ${s.valor ? s.valor.toFixed(2) : '0.00'}</td>
+                <td>${criarEtiquetaRetorno(s.statusRetorno, s.dataRetornoSugerida)}</td>
+            </tr>
+        `).join('');
+    }
+
+    carregarAnimais();
+</script>
+</body>
+</html>
